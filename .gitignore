@@ -1,0 +1,4 @@
+resources/dist/hot
+node_modules
+vendor
+mix-manifest.json

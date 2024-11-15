@@ -1,0 +1,41 @@
+{
+    "name": "ademti-apps/supersonic",
+    "autoload": {
+        "psr-4": {
+            "AdemtiApps\\Supersonic\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AdemtiApps\\Supersonic\\Tests\\": "tests"
+        }
+    },
+    "require": {
+        "statamic/cms": "^5.29"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "pixelfear/composer-dist-plugin": true
+        }
+    },
+    "extra": {
+        "statamic": {
+            "name": "Supersonic",
+            "description": "Supercharge your Statamic control panel with speedy keyboard navigation.",
+            "developer": "Ademti Apps",
+            "developer-url": "https://www.ademti-software.co.uk/",
+            "url": "https://www.ademti-software.co.uk/",
+            "editions": [ "starter", "pro" ]
+        },
+        "laravel": {
+            "providers": [
+                "AdemtiApps\\Supersonic\\ServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

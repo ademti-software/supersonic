@@ -1,0 +1,19 @@
+{
+  "resources/js/supersonic.css": {
+    "file": "assets/supersonic-13def4df.css",
+    "src": "resources/js/supersonic.css"
+  },
+  "resources/js/supersonic.js": {
+    "css": [
+      "assets/supersonic-13def4df.css"
+    ],
+    "file": "assets/supersonic-9fefddde.js",
+    "isEntry": true,
+    "src": "resources/js/supersonic.js"
+  },
+  "resources/scss/supersonic.scss": {
+    "file": "assets/supersonic-97f433cb.css",
+    "isEntry": true,
+    "src": "resources/scss/supersonic.scss"
+  }
+}
