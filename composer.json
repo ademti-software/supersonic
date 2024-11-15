@@ -1,5 +1,6 @@
 {
     "name": "ademti-apps/supersonic",
+    "license": "PolyForm-Perimeter-1.0.0",
     "autoload": {
         "psr-4": {
             "AdemtiApps\\Supersonic\\": "src"
