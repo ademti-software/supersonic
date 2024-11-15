@@ -275,6 +275,7 @@ export default {
     padding: 1rem 2rem 2rem 2rem;
     box-shadow: 1rem 1rem 1rem rgba(0, 0, 0, 0.4);
     max-height: 75vh;
+    font-size: 15px;
 }
 
 .modal h2 {
