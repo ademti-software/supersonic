@@ -1,6 +1,7 @@
 {
     "name": "ademti-apps/supersonic",
-    "license": "PolyForm-Perimeter-1.0.0",
+    "description": "Supersonic is a command palette for Statamic to take your efficiency to the next level.",
+    "license": "proprietary",
     "autoload": {
         "psr-4": {
             "AdemtiApps\\Supersonic\\": "src"
