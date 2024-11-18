@@ -10,6 +10,11 @@ export default {
         };
     },
     mounted() {
+        document.addEventListener('click', (e) => {
+           if (e.target.classList.contains('modal-container')) {
+               this.$emit('visibilityHide');
+           }
+        });
         document.addEventListener(
             'keydown',
             (e) => {

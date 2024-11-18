@@ -8,13 +8,18 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Statamic\CP\Navigation\CoreNav;
 use Statamic\Facades\AssetContainer;
+use Statamic\Facades\Blueprint;
 use Statamic\Facades\Collection as CollectionRepository;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\Fieldset;
+use Statamic\Facades\Form;
+use Statamic\Facades\GlobalSet;
 use Statamic\Facades\Nav as NavigationRepository;
+use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy as TaxonomyRepository;
 use Statamic\Facades\User;
 use Statamic\Statamic;
+use Statamic\Support\Str;
 use function array_merge;
 use function response;
 use function route;
@@ -44,7 +49,9 @@ class ActionInfoController
         $actions = $this->addNavigationActions($actions);
         $actions = $this->addTaxonomyActions($actions);
         $actions = $this->addAssetContainerActions($actions);
+        $actions = $this->addFieldsetActions($actions);
         $actions = $this->addBlueprintActions($actions);
+        $actions = $this->addMultisiteActions($actions);
 
         // Sort them.
         uasort($actions, function ($a, $b) {
@@ -60,8 +67,8 @@ class ActionInfoController
             'Supersonic',
             [
                 'primary' => [
-                    'type'        => 'link',
-                    'url'         => 'https://supersonic.ademti-software.co.uk',
+                    'type' => 'link',
+                    'url'  => 'https://supersonic.ademti-software.co.uk',
                 ]
             ],
             0
@@ -72,8 +79,8 @@ class ActionInfoController
             'Supersonic',
             [
                 'primary' => [
-                    'type'        => 'link',
-                    'url'         => 'https://supersonic.ademti-software.co.uk/using-supersonic',
+                    'type' => 'link',
+                    'url'  => 'https://supersonic.ademti-software.co.uk/using-supersonic',
                 ]
             ],
             1
@@ -84,8 +91,8 @@ class ActionInfoController
             'Supersonic',
             [
                 'primary' => [
-                    'type'        => 'link',
-                    'url'         => 'https://supersonic.ademti-software.co.uk/feature-requests',
+                    'type' => 'link',
+                    'url'  => 'https://supersonic.ademti-software.co.uk/feature-requests',
                 ]
             ],
             1
@@ -96,8 +103,8 @@ class ActionInfoController
             'Supersonic',
             [
                 'primary' => [
-                    'type'        => 'link',
-                    'url'         => 'https://supersonic.ademti-software.co.uk/contact',
+                    'type' => 'link',
+                    'url'  => 'https://supersonic.ademti-software.co.uk/contact',
                 ]
             ],
             1
@@ -137,8 +144,8 @@ class ActionInfoController
             $name         .= $navItem->display();
             $actions[$id] = new Action(
                 $id,
-                $name,
-                $path,
+                __($name),
+                __($path),
                 [
                     'primary' => [
                         'type' => 'link',
@@ -203,12 +210,13 @@ class ActionInfoController
         // Special case for the Fieldset class which has a title method, but no title prop.
         if ($repository === Fieldset::class) {
             $query = $repository::all()->sort(fn($a, $b) => $a->title() > $b->title());
+        } elseif ($repository === \Statamic\Sites\Site::class) {
+            $query = $respository::all()->sortBy('name');
         } else {
             $query = $repository::all()->sortBy('title');
         }
 
         $query->each(function ($item) use ($parentAction, $path, &$childActions, $subActions) {
-            // Generate URLs from any actions that are specified by route.
             foreach ($subActions as $idx => $subAction) {
                 $hasPermission = false;
                 foreach ($subAction['permissions'] as $permission) {
@@ -217,19 +225,32 @@ class ActionInfoController
                 }
 
                 // Bail if either the user doesn't have permission, or the item is not available on this site.
-                if ( ! $hasPermission ) {
+                if ( ! $hasPermission) {
                     unset($subActions[$idx]);
                     continue;
                 }
                 unset($subActions[$idx]['permissions']);
+                // Generate URLs from any actions that are specified by route.
                 if ( ! empty($subAction['route'])) {
                     $subActions[$idx]['url'] = route($subAction['route'], [$item->handle()]);
                     unset($subActions[$idx]['route']);
                 }
+                // Replace placholders in any URLs.
+                if ( ! empty($subAction['url'])) {
+                    $subActions[$idx]['url'] = str_replace('{handle}', $item->handle(), $subActions[$idx]['url']);
+                }
             }
             if ( ! empty($subActions)) {
-                // Special case for the Fieldset class which has a title method, but no title prop.
-                $title = $item->title ?? $item->title();
+                if ($item instanceof \Statamic\Sites\Site) {
+                    // Site has a name, not a title.
+                    $title = $item->name();
+                } elseif ($item instanceof \Statamic\Fields\Fieldset) {
+                    // Fieldset class has a title method, but no title prop.
+                    $title = $item->title();
+                } else {
+                    $title = $item->title;
+                }
+
                 // Add the actions
                 $childActions[$parentAction->id . '::' . $item->handle()] = new Action(
                     $parentAction->id . '::' . $item->handle(),
@@ -263,12 +284,12 @@ class ActionInfoController
             $collectionActions = array_merge(
                 $collectionActions,
                 [
-                    'secondary'  => [
+                    'secondary' => [
                         'type'        => 'link',
                         'route'       => 'statamic.cp.collections.edit',
                         'permissions' => ['configure collections'],
                     ],
-                    'tertiary' => [
+                    'tertiary'  => [
                         'type'        => 'search',
                         'route'       => 'statamic.cp.ademti-apps.supersonic.search.collection-entries',
                         'permissions' => ['edit {handle} entries', 'configure collections']
@@ -297,7 +318,7 @@ class ActionInfoController
             'content::navigation',
             NavigationRepository::class,
             [
-                'primary' => [
+                'primary'   => [
                     'type'        => 'link',
                     'route'       => 'statamic.cp.navigation.show',
                     'permissions' => ['edit {handle} nav', 'configure navs']
@@ -329,12 +350,12 @@ class ActionInfoController
             $taxonomyActions = array_merge(
                 $taxonomyActions,
                 [
-                    'secondary'  => [
+                    'secondary' => [
                         'type'        => 'link',
                         'route'       => 'statamic.cp.taxonomies.edit',
                         'permissions' => ['configure taxonomies',]
                     ],
-                    'tertiary' => [
+                    'tertiary'  => [
                         'type'        => 'search',
                         'route'       => 'statamic.cp.ademti-apps.supersonic.search.terms',
                         'permissions' => ['edit {handle} terms', 'configure taxonomies']
@@ -393,21 +414,258 @@ class ActionInfoController
      *
      * @return array
      */
-    private function addBlueprintActions(array $actions): array
+    private function addFieldsetActions(array $actions): array
     {
-        // @TODO - Add per-blueprint actions - behind licensing
+        $fieldsetActions = [
+            'primary' => [
+                'type'        => 'link',
+                'route'       => 'statamic.cp.fieldsets.edit',
+                'permissions' => ['configure fields'],
+            ],
+        ];
+
         return $this->addChildActions(
             $actions,
             'fields::fieldsets',
             Fieldset::class,
+            $fieldsetActions
+        );
+    }
+
+    private function addMultisiteActions(array $actions): array
+    {
+        if ( ! Site::multiEnabled()) {
+            return $actions;
+        }
+
+        return $this->addChildActions(
+            $actions,
+            'settings::sites',
+            Site::class,
             [
                 'primary' => [
                     'type'        => 'link',
-                    'route'       => 'statamic.cp.fieldsets.edit',
-                    'permissions' => ['configure fields'],
+                    'url'         => '/cp/select-site/{handle}',
+                    'permissions' => ['access {handle} site'],
                 ],
             ]
         );
     }
+
+    private function addBlueprintActions(array $actions): array
+    {
+        // Collection blueprints.
+        foreach (CollectionRepository::all() as $collection) {
+            $actions = $this->addBlueprintChildActions(
+                $actions,
+                'collections',
+                __('Collections'),
+                $collection,
+                $collection->entryBlueprints(),
+                [
+                    'primary' => [
+                        'type'        => 'link',
+                        'route'       => 'statamic.cp.collections.blueprints.edit',
+                        'permissions' => ['configure fields'],
+                    ],
+                ]
+            );
+        }
+
+        // Taxonomy blueprints.
+        foreach (TaxonomyRepository::all() as $taxonomy) {
+            $actions = $this->addBlueprintChildActions(
+                $actions,
+                'taxonomies',
+                __('Taxonomies'),
+                $taxonomy,
+                $taxonomy->termBlueprints(),
+                [
+                    'primary' => [
+                        'type'        => 'link',
+                        'route'       => 'statamic.cp.taxonomies.blueprints.edit',
+                        'permissions' => ['configure fields'],
+                    ],
+                ]
+            );
+        }
+
+        // Navigation blueprints.
+        $actions = $this->addBlueprintChildActions(
+            $actions,
+            'navigations',
+            __('Navigations'),
+            null,
+            NavigationRepository::all(),
+            [
+                'primary' => [
+                    'type'        => 'link',
+                    'route'       => 'statamic.cp.navigation.blueprint.edit',
+                    'permissions' => ['configure fields'],
+                ],
+            ]
+        );
+
+        // Globalset blueprints.
+        $actions = $this->addBlueprintChildActions(
+            $actions,
+            'globals',
+            __('Globals'),
+            null,
+            GlobalSet::all(),
+            [
+                'primary' => [
+                    'type'        => 'link',
+                    'route'       => 'statamic.cp.globals.blueprint.edit',
+                    'permissions' => ['configure fields'],
+                ],
+            ]
+        );
+
+        // Asset container blueprints.
+        $actions = $this->addBlueprintChildActions(
+            $actions,
+            'asset-containers',
+            __('Asset Containers'),
+            null,
+            AssetContainer::all(),
+            [
+                'primary' => [
+                    'type'        => 'link',
+                    'route'       => 'statamic.cp.asset-containers.blueprint.edit',
+                    'permissions' => ['configure fields'],
+                ],
+            ]
+        );
+
+        // Form blueprints.
+        $actions = $this->addBlueprintChildActions(
+            $actions,
+            'forms',
+            __('Forms'),
+            null,
+            Form::all(),
+            [
+                'primary' => [
+                    'type'        => 'link',
+                    'route'       => 'statamic.cp.forms.blueprint.edit',
+                    'permissions' => ['configure form fields'],
+                ],
+            ]
+        );
+
+        // User blueprint.
+        if (User::current()->can(['configure fields'])) {
+            $actions['fields::blueprints::user'] = new Action(
+                'fields::blueprints::user',
+                __('User'),
+                'Fields » Blueprints',
+                [
+                    'primary' => [
+                        'type'        => 'link',
+                        'url'       => route('statamic.cp.users.blueprint.edit'),
+                    ],
+                ],
+                1
+            );
+            $actions['fields::blueprints::user-groups'] = new Action(
+                'fields::blueprints::user-group',
+                __('Group'),
+                'Fields » Blueprints',
+                [
+                    'primary' => [
+                        'type'      => 'link',
+                        'url'       => route('statamic.cp.user-groups.blueprint.edit'),
+                    ],
+                ],
+                1
+            );
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param  array  $actions  The current list of actions to be added to.
+     * @param  string  $parentId  A conceptual "ID" to site these blueprints as a child of.
+     * @param  string  $parentName  A conceptual path name to site these blueprints under.
+     * @param  Entry|null  $entry  The entry that tis blueprint relates to.
+     * @param  Collection  $items  The items to generate actions for.
+     * @param  array  $subActions  Array of sub-actions that can be invoked on this action.
+     *
+     * @return array
+     */
+    private function addBlueprintChildActions($actions, $parentId, $parentName, $entry, $items, $subActions)
+    {
+        $grandparentAction = $actions['fields::blueprints'];
+        $path              = $grandparentAction->path . ' » ' .
+                             $grandparentAction->name . ' » ' .
+                             $parentName;
+        if ($entry) {
+            $path .= ' » ' . $entry->title;
+        }
+        $childActions      = [];
+
+        $items->each(function ($item) use ($grandparentAction, $entry, $parentId, $path, &$childActions, $subActions) {
+            foreach ($subActions as $idx => $subAction) {
+                $hasPermission = false;
+                foreach ($subAction['permissions'] as $permission) {
+                    $permission    = str_replace('{handle}', $item->handle(), $permission);
+                    $hasPermission |= User::current()->can($permission, $item);
+                }
+
+                // Bail if either the user doesn't have permission, or the item is not available on this site.
+                if ( ! $hasPermission) {
+                    unset($subActions[$idx]);
+                    continue;
+                }
+                unset($subActions[$idx]['permissions']);
+                // Generate URLs from any actions that are specified by route.
+                if ( ! empty($subAction['route'])) {
+                    switch ($subAction['route']) {
+                        case 'statamic.cp.collections.blueprints.edit':
+                            $routeArgs = ['collection' => $entry->handle(), 'blueprint'  => $item->handle()];
+                            break;
+                        case 'statamic.cp.taxonomies.blueprints.edit':
+                            $routeArgs = ['taxonomy'  => $entry->handle(), 'blueprint' => $item->handle()];
+                            break;
+
+                        case 'statamic.cp.navigation.blueprint.edit':
+                            $routeArgs = ['navigation'  => $item->handle()];
+                            break;
+                        case 'statamic.cp.asset-containers.blueprint.edit':
+                            $routeArgs = ['asset_container' => $item->handle()];
+                            break;
+                        case 'statamic.cp.globals.blueprint.edit':
+                            $routeArgs = ['global_set' => $item->handle()];
+                            break;
+                        case 'statamic.cp.forms.blueprint.edit':
+                            $routeArgs = ['form' => $item->handle()];
+                            break;
+                    }
+                    $subActions[$idx]['url'] = route($subAction['route'], $routeArgs);
+                    unset($subActions[$idx]['route']);
+                }
+                // Replace placholders in any URLs.
+                if ( ! empty($subAction['url'])) {
+                    $subActions[$idx]['url'] = str_replace('{handle}', $item->handle(), $subActions[$idx]['url']);
+                }
+            }
+            if ( ! empty($subActions)) {
+                // Add the actions
+                $key                = $grandparentAction->id . '::' . $parentId . '::' . $item->handle();
+                $childActions[$key] = new Action(
+                    $key,
+                    $item->title ?? $item->title(),
+                    $path,
+                    $subActions,
+                    1
+                );
+            }
+        });
+
+        return array_merge($actions, $childActions);
+    }
+
 
 }
