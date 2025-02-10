@@ -63,6 +63,12 @@ class TermsController extends CpController
             return response()->json([]);
         }
 
+        // Check that the required index has been configured.
+        $exists = Search::indexes();
+        if (!$exists->has('supersonic_terms')) {
+            abort(404, '', ['X-Supersonic-Error' => 'Index supersonic_terms has not been configured. Please check the install documentation.']);
+        }
+
         try {
             $query = Search::index('supersonic_terms')
                            ->ensureExists()

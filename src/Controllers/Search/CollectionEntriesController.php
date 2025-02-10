@@ -14,6 +14,7 @@ use Statamic\Facades\URL;
 use Statamic\Facades\User;
 use Statamic\Http\Controllers\CP\CpController;
 use Statamic\Statamic;
+use function abort;
 use function response;
 use function str_starts_with;
 
@@ -61,6 +62,11 @@ class CollectionEntriesController extends CpController
             return response()->json([]);
         }
 
+        // Check that the required index has been configured.
+        $exists = Search::indexes();
+        if (!$exists->has('supersonic_entries')) {
+            abort(404, '', ['X-Supersonic-Error' => 'Index supersonic_entries has not been configured. Please check the install documentation.']);
+        }
 
         try {
             $query = Search::index('supersonic_entries')

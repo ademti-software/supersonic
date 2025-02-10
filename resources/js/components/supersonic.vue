@@ -35,8 +35,11 @@
 
                 </supersonic-action-list>
                 <div class="no-results-container" v-if="!isSearching && this.searchResults.length < 1">
-                    <p v-if="this.errorSearching">
+                    <p v-if="this.errorSearching && this.customErrorMessage.length < 1">
                         {{ __('There was an error fetching results. Sorry.') }}
+                    </p>
+                    <p v-if="this.errorSearching && this.customErrorMessage.length > 0">
+                        {{ customErrorMessage }}
                     </p>
                     <p v-if="!this.errorSearching && this.searchVal.length > 0">
                         {{ __('No results') }}
@@ -87,6 +90,7 @@ export default {
             selectedIdx: 0,
             // Data required for search view.
             searchVal: '',
+            customErrorMessage: '',
             errorSearching: false,
             searchResults: [],
             selectedSearchIdx: 0,
@@ -144,12 +148,16 @@ export default {
             })).then((response) => {
                 this.selectedSearchIdx = 0;
                 if (!response.ok) {
+                    this.customErrorMessage = '';
+                    if (response.headers.has('x-supersonic-error')) {
+                        this.customErrorMessage = response.headers.get('x-supersonic-error');
+                    }
                     this.errorSearching = true;
                     return [];
                 }
 
                 return response.json();
-            }).catch(() => {
+            }).catch((error) => {
                 this.errorSearching = true;
                 return [];
             });
