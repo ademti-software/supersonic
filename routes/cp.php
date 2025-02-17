@@ -2,6 +2,7 @@
 
 use AdemtiApps\Supersonic\Controllers\ActionInfoController;
 use AdemtiApps\Supersonic\Controllers\Search\CollectionEntriesController;
+use AdemtiApps\Supersonic\Controllers\Search\EntriesController;
 use AdemtiApps\Supersonic\Controllers\Search\TermsController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,8 @@ Route::group(
              ->name('ademti-apps.supersonic.action-info');
         Route::get('/!/ademti-apps/supersonic/search/collection-entries/{collection}', CollectionEntriesController::class)
              ->name('ademti-apps.supersonic.search.collection-entries');
+        Route::get('/!/ademti-apps/supersonic/search/entries/', EntriesController::class)
+             ->name('ademti-apps.supersonic.search.entries');
         Route::get('/!/ademti-apps/supersonic/search/terms/{taxonomy}', TermsController::class)
              ->name('ademti-apps.supersonic.search.terms');
     }

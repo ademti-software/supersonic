@@ -6,10 +6,10 @@
             <!-- Main action pane -->
             <div v-if="mode === 'main'">
                 <p>
-                    <input type="text" id="supersonic-filter" v-model="filterVal">
+                    <input type="text" id="supersonic-filter" v-model="mainView.filterVal">
                 </p>
-                <supersonic-action-list v-bind:actions="filteredActions"
-                                        v-bind:selectedIdx="selectedIdx"
+                <supersonic-action-list v-bind:actions="mainView.filteredActions"
+                                        v-bind:selectedIdx="mainView.selectedIdx"
                                         @clickAction="clickAction">
                 </supersonic-action-list>
                 <supersonic-key-listener
@@ -27,33 +27,32 @@
             <!-- Search pane -->
             <div v-if="mode === 'search'">
                 <p>
-                    <input type="text" id="supersonic-filter" v-model="searchVal">
+                    <input type="text" id="supersonic-filter" v-model="searchView.searchVal">
                 </p>
-                <supersonic-action-list v-if="!isSearching && this.searchResults.length > 0" v-bind:actions="searchResults"
-                                        v-bind:selectedIdx="selectedSearchIdx"
-                                        @clickAction="clickAction">
-
+                <supersonic-action-list
+                    v-if="!searchView.isSearching && this.searchView.searchResults.length > 0"
+                    v-bind:actions="searchView.searchResults"
+                    v-bind:selectedIdx="searchView.selectedIdx"
+                    @clickAction="clickAction">
                 </supersonic-action-list>
-                <div class="no-results-container" v-if="!isSearching && this.searchResults.length < 1">
-                    <p v-if="this.errorSearching && this.customErrorMessage.length < 1">
-                        {{ __('There was an error fetching results. Sorry.') }}
+                <div class="no-results-container" v-if="!searchView.isSearching && this.searchView.searchResults.length < 1">
+                    <p v-if="!this.searchView.errorSearching && this.searchView.searchVal.length < 1">
+                        {{ __('Type to search in ') }}{{ this.mainView.filteredActions[mainView.selectedIdx].path + ' » ' + this.mainView.filteredActions[mainView.selectedIdx].name }}
                     </p>
-                    <p v-if="this.errorSearching && this.customErrorMessage.length > 0">
-                        {{ customErrorMessage }}
-                    </p>
-                    <p v-if="!this.errorSearching && this.searchVal.length > 0">
+                    <p v-if="!this.searchView.errorSearching && this.searchView.searchVal.length > 0">
                         {{ __('No results') }}
                     </p>
-                    <p v-if="!this.errorSearching && this.searchVal.length < 1">
-                        {{ __('Type to search in ') }}{{ this.filteredActions[selectedIdx].path + ' » ' + this.filteredActions[selectedIdx].name }}
+                    <p v-if="this.searchView.errorSearching && this.searchView.customErrorMessage.length < 1">
+                        {{ __('There was an error fetching results. Sorry.') }}
+                    </p>
+                    <p v-if="this.searchView.errorSearching && this.searchView.customErrorMessage.length > 0">
+                        {{ searchView.customErrorMessage }}
                     </p>
                 </div>
-                <div class="spinner-container" v-if="isSearching">
+                <div class="spinner-container" v-if="searchView.isSearching">
                     <div>
                         <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
-                        <p>
-                            {{ __('Searching...') }}
-                        </p>
+                        <p>{{ __('Searching...') }}</p>
                     </div>
                 </div>
                 <supersonic-key-listener
@@ -78,101 +77,114 @@ import debounce from "lodash.debounce";
 
 export default {
     props: {
-        actions: {type: Object, required: true},
-        isVisible: {type: Boolean, required: true},
-        mode: {type: String, required: true},
+        actions: {
+            type: Object,
+            required: true
+        },
+        isVisible: {
+            type: Boolean,
+            required: true
+        },
+        mode: {
+            type: String,
+            required: true
+        },
     },
     data() {
         return {
-            // Data required for main view.
-            filterVal: '',
-            filteredActions: {},
-            selectedIdx: 0,
-            // Data required for search view.
-            searchVal: '',
-            customErrorMessage: '',
-            errorSearching: false,
-            searchResults: [],
-            selectedSearchIdx: 0,
-            isSearching: false,
-            searchUrl: '',
+            mainView: {
+                filterVal: '',
+                filteredActions: {},
+                selectedIdx: 0,
+            },
+            searchView: {
+                searchVal: '',
+                customErrorMessage: '',
+                errorSearching: false,
+                searchResults: [],
+                selectedIdx: 0,
+                isSearching: false,
+                searchUrl: '',
+            }
         };
     },
     mounted() {
+        // Set up handlers for filtering actions / search results.
         this.debouncedFilter = throttle(() => {
             this.filter();
         }, 100);
-        this.filter();
         this.debouncedSearch = debounce(() => {
             this.search();
         }, 300);
+        // Show the initial list.
+        this.filter();
     },
     beforeUnmount() {
         this.debouncedFilter.cancel();
     },
     watch: {
-        filterVal() {
+        'mainView.filterVal' () {
             this.debouncedFilter();
         },
-        searchVal() {
+        'searchView.searchVal' () {
             this.debouncedSearch();
         }
     },
     methods: {
         filter() {
-            this.filteredActions = {};
-            var lcFilterVal = this.filterVal.toLowerCase();
+            this.mainView.filteredActions = {};
+            var lcFilterVal = this.mainView.filterVal.toLowerCase();
             var doneSelected = false;
             var matches = 0;
-            this.selectedIdx = 0;
+            this.mainView.selectedIdx = 0;
             for (var idx in this.actions) {
                 if (this.actions[idx].searchName.includes(lcFilterVal)) {
-                    this.filteredActions[matches] = Object.assign({
+                    this.mainView.filteredActions[matches] = Object.assign({
                         isSelected: !doneSelected,
                         ...this.actions[idx]
                     });
-                    doneSelected = doneSelected || this.filteredActions[matches].isSelected;
+                    doneSelected = doneSelected || this.mainView.filteredActions[matches].isSelected;
 
                     matches++;
                 }
             }
         },
         async search() {
-            this.isSearching = true;
-            this.errorSearching = false;
-            this.searchResults = [];
-            var lcSearchVal = this.searchVal.toLowerCase();
+            this.searchView.isSearching = true;
+            this.searchView.errorSearching = false;
+            this.searchView.searchResults = [];
+            var lcSearchVal = this.searchView.searchVal.toLowerCase();
 
-            const json = await fetch(this.searchUrl + '?' + new URLSearchParams({
-                s: this.searchVal,
+            const json = await fetch(this.searchView.searchUrl + '?' + new URLSearchParams({
+                s: this.searchView.searchVal,
             })).then((response) => {
-                this.selectedSearchIdx = 0;
+                this.searchView.selectedIdx = 0;
                 if (!response.ok) {
-                    this.customErrorMessage = '';
+                    this.searchView.customErrorMessage = '';
                     if (response.headers.has('x-supersonic-error')) {
-                        this.customErrorMessage = response.headers.get('x-supersonic-error');
+                        this.searchView.customErrorMessage = response.headers.get('x-supersonic-error');
                     }
-                    this.errorSearching = true;
+                    this.searchView.errorSearching = true;
                     return [];
                 }
 
                 return response.json();
             }).catch((error) => {
-                this.errorSearching = true;
+                this.searchView.errorSearching = true;
                 return [];
             });
 
-            this.searchResults = await json;
+            this.searchView.searchResults = await json;
 
-            if (this.searchResults.length > 0) {
-                this.searchResults.isSelected = true;
+            if (this.searchView.searchResults.length > 0) {
+                this.searchView.searchResults.isSelected = true;
             }
-            this.isSearching = false;
+            this.searchView.isSearching = false;
         },
         toggleVisibility() {
             if (!this.isVisible) {
                 // We're about to show the dialog, reset the search term, and mode.
-                this.filterVal = '';
+                this.mainView.filterVal = '';
                 this.mode = 'main';
             }
             this.isVisible = !this.isVisible;
@@ -186,38 +198,38 @@ export default {
             this.isVisible = false;
         },
         mainSelectNext() {
-            if (( this.selectedIdx + 1 ) < Object.keys(this.filteredActions).length) {
-                this.selectedIdx++;
+            if (( this.mainView.selectedIdx + 1 ) < Object.keys(this.mainView.filteredActions).length) {
+                this.mainView.selectedIdx++;
             }
-            document.getElementById('action-' + this.selectedIdx).scrollIntoView({block: 'center'});
+            document.getElementById('action-' + this.mainView.selectedIdx).scrollIntoView({block: 'center'});
         },
         mainSelectPrevious() {
-            if (this.selectedIdx > 0) {
-                this.selectedIdx--;
+            if (this.mainView.selectedIdx > 0) {
+                this.mainView.selectedIdx--;
             }
-            document.getElementById('action-' + this.selectedIdx).scrollIntoView({block: 'center'});
+            document.getElementById('action-' + this.mainView.selectedIdx).scrollIntoView({block: 'center'});
         },
         leaveSearchAction() {
             this.mode = 'main';
         },
         selectNextSearchResult() {
-            if (( this.selectedSearchIdx + 1 ) < this.searchResults.length) {
-                this.selectedSearchIdx++;
+            if (( this.searchView.selectedIdx + 1 ) < this.searchView.searchResults.length) {
+                this.searchView.selectedIdx++;
             }
-            document.getElementById('action-' + this.selectedSearchIdx).scrollIntoView({block: 'center'});
+            document.getElementById('action-' + this.searchView.selectedIdx).scrollIntoView({block: 'center'});
         },
         selectPreviousSearchResult() {
-            if (this.selectedSearchIdx > 0) {
-                this.selectedSearchIdx--;
+            if (this.searchView.selectedIdx > 0) {
+                this.searchView.selectedIdx--;
             }
-            document.getElementById('action-' + this.selectedSearchIdx).scrollIntoView({block: 'center'});
+            document.getElementById('action-' + this.searchView.selectedIdx).scrollIntoView({block: 'center'});
         },
         doAction(requestedAction) {
             var actions = null;
             if (this.mode === 'main') {
-                actions = this.filteredActions[this.selectedIdx]?.actions;
+                actions = this.mainView.filteredActions[this.mainView.selectedIdx]?.actions;
             } else {
-                actions = this.searchResults[this.selectedSearchIdx]?.actions;
+                actions = this.searchView.searchResults[this.searchView.selectedIdx]?.actions;
             }
             if (typeof actions[requestedAction] === 'undefined') {
                 return;
@@ -236,10 +248,10 @@ export default {
             // Handle 'search' actions
             if (action.type === 'search') {
                 // Reset the search view.
-                this.searchVal = '';
-                this.searchResults = [];
-                this.isSearching = false;
-                this.searchUrl = action.url;
+                this.searchView.searchVal = '';
+                this.searchView.searchResults = [];
+                this.searchView.isSearching = false;
+                this.searchView.searchUrl = action.url;
 
                 // Switch to search modal.
                 this.mode = 'search';
@@ -251,10 +263,10 @@ export default {
         },
         clickAction(idx) {
             if (this.mode === 'main') {
-                this.selectedIdx = idx;
+                this.mainView.selectedIdx = idx;
                 this.doAction('primary');
             } else {
-                this.selectedSearchIdx = idx;
+                this.searchView.selectedIdx = idx;
                 this.doAction('primary');
             }
         }

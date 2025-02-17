@@ -18,7 +18,7 @@ use function abort;
 use function response;
 use function str_starts_with;
 
-class CollectionEntriesController extends CpController
+class EntriesController extends CpController
 {
     /**
      * @var EntryRepository
@@ -29,6 +29,7 @@ class CollectionEntriesController extends CpController
     /**
      * @param  Request  $request
      * @param  EntryRepository  $entryRepository
+     * @param  AddonInfo  $addon
      */
     public function __construct(Request $request, EntryRepository $entryRepository, AddonInfo $addon)
     {
@@ -38,20 +39,19 @@ class CollectionEntriesController extends CpController
     }
 
     /**
-     * @param  Collection  $collection
      * @param  Request  $request
      *
      * @return \Illuminate\Http\JsonResponse
      * @throws \Illuminate\Auth\Access\AuthorizationException
      */
-    public function __invoke(Collection $collection, Request $request)
+    public function __invoke(Request $request)
     {
         // Only available with a Pro license.
-        if ( ! $this->addon->isPro()) {
+        if (!$this->addon->isPro()) {
             abort(403);
         }
 
-        if ( ! User::current()->can('edit ' . $collection . ' entries', $collection) &&
+        if ( ! User::current()->can('edit entries') &&
              ! User::current()->can('configure collections')
         ) {
             abort(403);
@@ -76,7 +76,6 @@ class CollectionEntriesController extends CpController
             $query = Search::index('supersonic_entries')
                            ->ensureExists()
                            ->search($search)
-                           ->where('collection', $collection->handle())
                            ->where('site', Site::selected()->handle());
         } catch (\Throwable $t) {
             return response()->json([]);

@@ -19,7 +19,6 @@ use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy as TaxonomyRepository;
 use Statamic\Facades\User;
 use Statamic\Statamic;
-use Statamic\Support\Str;
 use function array_merge;
 use function response;
 use function route;
@@ -142,16 +141,20 @@ class ActionInfoController
                 $path = $section;
             }
             $name         .= $navItem->display();
-            $actions[$id] = new Action(
+            $subActions = $this->enrichCpNavItemSubactions(
                 $id,
-                __($name),
-                __($path),
                 [
                     'primary' => [
                         'type' => 'link',
                         'url'  => $navItem->url(),
                     ],
-                ],
+                ]
+            );
+            $actions[$id] = new Action(
+                $id,
+                __($name),
+                __($path),
+                $subActions,
                 0,
                 Statamic::svg('icons/light/' . ($navItem->icon() ?? 'entries'))
             );
@@ -161,6 +164,7 @@ class ActionInfoController
             if ( ! $children) {
                 continue;
             }
+
             foreach ($children as $child) {
                 $id           = $child->id();
                 $name         = $child->display();
@@ -180,6 +184,29 @@ class ActionInfoController
         }
 
         return $actions;
+    }
+
+    /**
+     * Adds some additional sub-actions to CP Nav Item actions.
+     *
+     * @param $id
+     * @param $subActions
+     *
+     * @return mixed
+     * @throws Exception
+     */
+    private function enrichCpNavItemSubactions($id, $subActions) {
+        if (!$this->addon->isPro()) {
+            return $subActions;
+        }
+        if ($id === 'content::collections') {
+            $subActions['tertiary'] = [
+                'type'        => 'search',
+                'url'         => route( 'statamic.cp.ademti-apps.supersonic.search.entries' ),
+                'permissions' => [ 'edit entries', 'configure collections' ]
+            ];
+        }
+        return $subActions;
     }
 
     /**
