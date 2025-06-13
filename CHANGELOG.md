@@ -1,3 +1,8 @@
+# 1.2.0
+
+- [new] Support global entries search
+- [new] Show helpful message if search indexes are missing
+
 # 1.1.0
 
 - [new] Add palette actions to swap the currently active site
